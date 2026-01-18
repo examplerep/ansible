@@ -1,0 +1,88 @@
+---
+- name: Setup DNS - Route53 and Cloudflare
+  hosts: localhost
+  gather_facts: false
+
+  pre_tasks:
+    - name: Validate required configuration
+      ansible.builtin.assert:
+        that:
+          - sandbox_id | length > 0
+          - cloudflare_api_token | length > 0
+        fail_msg: |
+          Missing required configuration:
+            - SANDBOX_ID environment variable
+            - ~/.cloudflare_api_token file
+            - ~/.aws/credentials file
+        success_msg: "All required configuration is present"
+
+  tasks:
+    # =========================================================================
+    # Route53 - Create Hosted Zone
+    # =========================================================================
+    - name: Create Route53 hosted zone for {{ ocp_domain }}
+      amazon.aws.route53_zone:
+        zone: "{{ ocp_domain }}"
+        state: present
+        comment: "OpenShift cluster zone for Example Power - Sandbox {{ sandbox_id }}"
+        region: "{{ aws_region }}"
+      register: route53_zone
+
+    - name: Get Route53 hosted zone name servers
+      ansible.builtin.command:
+        cmd: aws route53 get-hosted-zone --id {{ route53_zone.zone_id }} --query 'DelegationSet.NameServers' --output json
+      register: route53_ns_result
+      changed_when: false
+
+    - name: Set name servers fact
+      ansible.builtin.set_fact:
+        route53_name_servers: "{{ route53_ns_result.stdout | from_json }}"
+
+    - name: Display Route53 hosted zone info
+      ansible.builtin.debug:
+        msg:
+          - "Zone ID: {{ route53_zone.zone_id }}"
+          - "Name Servers: {{ route53_name_servers }}"
+
+    # =========================================================================
+    # Cloudflare - Create NS Records
+    # =========================================================================
+    - name: Create NS records in Cloudflare pointing to Route53
+      community.general.cloudflare_dns:
+        zone: "{{ base_domain }}"
+        api_token: "{{ cloudflare_api_token }}"
+        state: present
+        type: NS
+        record: "{{ ocp_subdomain }}"
+        value: "{{ item }}"
+      loop: "{{ route53_name_servers }}"
+      register: cloudflare_ns_records
+
+    - name: Display Cloudflare NS records created
+      ansible.builtin.debug:
+        msg: "Created NS record: {{ ocp_subdomain }}.{{ base_domain }} -> {{ item.item }}"
+      loop: "{{ cloudflare_ns_records.results }}"
+      when: item.changed
+
+    # =========================================================================
+    # Summary
+    # =========================================================================
+    - name: Display DNS setup summary
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "DNS Setup Complete for Example Power"
+          - "=============================================="
+          - "Sandbox ID: {{ sandbox_id }}"
+          - "Sandbox Base Domain: {{ sandbox_base_domain }}"
+          - ""
+          - "Route53 Hosted Zone:"
+          - "  Zone: {{ ocp_domain }}"
+          - "  Zone ID: {{ route53_zone.zone_id }}"
+          - ""
+          - "Cloudflare NS Delegation:"
+          - "  {{ ocp_subdomain }}.{{ base_domain }} -> Route53 Name Servers"
+          - ""
+          - "Name Servers:"
+          - "  {{ route53_name_servers | join('\n  ') }}"
+          - "=============================================="

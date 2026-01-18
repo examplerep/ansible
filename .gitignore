@@ -1,0 +1,25 @@
+# Virtual environment
+.venv/
+
+# Ansible
+collections/ansible_collections/
+*.retry
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

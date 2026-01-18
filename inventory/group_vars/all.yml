@@ -1,0 +1,21 @@
+---
+# Domain Configuration
+base_domain: examplerep.com
+ocp_subdomain: ocp
+ocp_domain: "{{ ocp_subdomain }}.{{ base_domain }}"
+
+# Sandbox Configuration (from environment)
+sandbox_id: "{{ lookup('env', 'SANDBOX_ID') }}"
+sandbox_base_domain: "sandbox{{ sandbox_id }}.opentlc.com"
+
+# AWS Configuration
+# Credentials are read automatically from ~/.aws/credentials
+aws_region: us-east-2
+
+# Cloudflare Configuration
+# Token read from ~/.cloudflare_api_token
+cloudflare_api_token: "{{ lookup('file', '~/.cloudflare_api_token') | trim }}"
+
+# GitHub Configuration
+# Token read from ~/.github_pat
+github_pat: "{{ lookup('file', '~/.github_pat') | trim }}"
