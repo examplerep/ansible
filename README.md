@@ -2,16 +2,12 @@
 
 Ansible playbooks for managing Example Power infrastructure.
 
-## Prerequisites
-
-- Python 3.9+
-- awscli
-
 ## Setup
 
 ```shell
 python3 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ansible-galaxy collection install -r collections.yml
 ```
