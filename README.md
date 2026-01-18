@@ -118,6 +118,33 @@ ansible-playbook playbooks/create-hub-cluster.yml
 | Architecture  | amd64                       |
 | Instance Type | m6i.4xlarge                 |
 
+### Create Spoke Cluster
+
+Creates a Single Node OpenShift (SNO) spoke cluster (dev, test, or prod).
+
+```shell
+source .venv/bin/activate
+ansible-playbook playbooks/create-spoke-cluster.yml -e cluster_name=dev
+ansible-playbook playbooks/create-spoke-cluster.yml -e cluster_name=test
+ansible-playbook playbooks/create-spoke-cluster.yml -e cluster_name=prod
+```
+
+**What it does:**
+
+1. Generates install-config.yaml for SNO
+2. Runs openshift-install to create the cluster
+3. Outputs cluster access credentials
+
+**Cluster Details:**
+
+| Property      | Value                            |
+| ------------- | -------------------------------- |
+| Cluster Name  | dev / test / prod                |
+| Domain        | {name}.ocp.examplerep.com        |
+| Type          | Single Node OpenShift (SNO)      |
+| Architecture  | amd64                            |
+| Instance Type | m6i.4xlarge                      |
+
 ## Directory Structure
 
 ```text
@@ -132,6 +159,7 @@ inventory/
 └── hosts.yml                   # Inventory configuration
 playbooks/
 ├── create-hub-cluster.yml      # Hub cluster creation playbook
+├── create-spoke-cluster.yml    # Spoke cluster creation (dev/test/prod)
 └── setup-rhdp-environment.yml  # RHDP environment setup (DNS, Secrets Manager)
 README.md                       # This file
 requirements.txt                # Python dependencies
