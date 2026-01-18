@@ -1,0 +1,121 @@
+---
+- name: Create Hub Cluster (Single Node OpenShift)
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    cluster_name: "{{ hub_cluster_name }}"
+    cluster_base_domain: "{{ ocp_domain }}"
+    instance_type: "{{ hub_instance_type }}"
+    cluster_dir: "{{ openshift_install_dir }}/{{ cluster_name }}"
+
+  pre_tasks:
+    - name: Validate required configuration
+      ansible.builtin.assert:
+        that:
+          - openshift_pull_secret | length > 0
+          - ssh_public_key | length > 0
+        fail_msg: |
+          Missing required configuration:
+            - ~/.pull-secret
+            - ~/.ssh/ocp_ed25519.pub
+            - ~/.aws/credentials
+        success_msg: "All required configuration is present"
+
+  tasks:
+    # =========================================================================
+    # Prepare Installation Directory
+    # =========================================================================
+    - name: Create cluster installation directory
+      ansible.builtin.file:
+        path: "{{ cluster_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Check if cluster already exists
+      ansible.builtin.stat:
+        path: "{{ cluster_dir }}/metadata.json"
+      register: cluster_metadata
+
+    - name: Fail if cluster already exists
+      ansible.builtin.fail:
+        msg: |
+          Cluster {{ cluster_name }} already exists at {{ cluster_dir }}
+          To recreate, first destroy the existing cluster or remove the directory.
+      when: cluster_metadata.stat.exists
+
+    # =========================================================================
+    # Generate Install Config
+    # =========================================================================
+    - name: Generate install-config.yaml
+      ansible.builtin.template:
+        src: "../templates/install-config-sno.yaml.j2"
+        dest: "{{ cluster_dir }}/install-config.yaml"
+        mode: "0600"
+      vars:
+        pull_secret: "{{ openshift_pull_secret | from_json }}"
+        ssh_key: "{{ ssh_public_key }}"
+
+    - name: Backup install-config.yaml
+      ansible.builtin.copy:
+        src: "{{ cluster_dir }}/install-config.yaml"
+        dest: "{{ cluster_dir }}/install-config.yaml.backup"
+        mode: "0600"
+
+    # =========================================================================
+    # Create Cluster
+    # =========================================================================
+    - name: Display cluster creation info
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "Creating Hub Cluster"
+          - "=============================================="
+          - "Cluster Name: {{ cluster_name }}"
+          - "Base Domain: {{ cluster_base_domain }}"
+          - "Full Domain: {{ cluster_name }}.{{ cluster_base_domain }}"
+          - "Instance Type: {{ instance_type }}"
+          - "AWS Region: {{ aws_region }}"
+          - "Cluster Type: Single Node OpenShift (SNO)"
+          - "Architecture: arm64"
+          - "=============================================="
+          - ""
+          - "This will take approximately 30-45 minutes..."
+          - ""
+
+    - name: Create OpenShift cluster
+      ansible.builtin.command:
+        cmd: openshift-install create cluster --dir={{ cluster_dir }} --log-level=info
+      register: cluster_create
+      async: 3600
+      poll: 30
+
+    # =========================================================================
+    # Post-Installation
+    # =========================================================================
+    - name: Get kubeadmin password
+      ansible.builtin.slurp:
+        src: "{{ cluster_dir }}/auth/kubeadmin-password"
+      register: kubeadmin_password
+
+    - name: Display cluster access info
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "Hub Cluster Created Successfully"
+          - "=============================================="
+          - ""
+          - "Console URL: https://console-openshift-console.apps.{{ cluster_name }}.{{ cluster_base_domain }}"
+          - "API URL: https://api.{{ cluster_name }}.{{ cluster_base_domain }}:6443"
+          - ""
+          - "Credentials:"
+          - "  Username: kubeadmin"
+          - "  Password: {{ kubeadmin_password.content | b64decode }}"
+          - ""
+          - "Kubeconfig: {{ cluster_dir }}/auth/kubeconfig"
+          - ""
+          - "To access the cluster:"
+          - "  export KUBECONFIG={{ cluster_dir }}/auth/kubeconfig"
+          - "  oc whoami"
+          - ""
+          - "=============================================="

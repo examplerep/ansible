@@ -1,5 +1,5 @@
 ---
-- name: Setup DNS - Route53 and Cloudflare
+- name: Setup RHDP Environment
   hosts: localhost
   gather_facts: false
 
@@ -65,13 +65,57 @@
       when: item.changed
 
     # =========================================================================
+    # AWS Secrets Manager - Create Secrets
+    # =========================================================================
+    - name: Check if secret foo exists
+      ansible.builtin.command:
+        cmd: aws secretsmanager describe-secret --secret-id foo --region {{ aws_region }}
+      register: secret_foo_check
+      changed_when: false
+      failed_when: false
+
+    - name: Create AWS Secrets Manager secret - foo
+      ansible.builtin.command:
+        cmd: >
+          aws secretsmanager create-secret
+          --name foo
+          --description "Example Power secret"
+          --secret-string "bar"
+          --region {{ aws_region }}
+      register: secrets_manager_foo_create
+      when: secret_foo_check.rc != 0
+
+    - name: Update AWS Secrets Manager secret - foo
+      ansible.builtin.command:
+        cmd: >
+          aws secretsmanager put-secret-value
+          --secret-id foo
+          --secret-string "bar"
+          --region {{ aws_region }}
+      register: secrets_manager_foo_update
+      when: secret_foo_check.rc == 0
+      changed_when: true
+
+    - name: Get secret ARN
+      ansible.builtin.command:
+        cmd: aws secretsmanager describe-secret --secret-id foo --query 'ARN' --output text --region {{ aws_region }}
+      register: secret_foo_arn
+      changed_when: false
+
+    - name: Display Secrets Manager info
+      ansible.builtin.debug:
+        msg:
+          - "Secret: foo"
+          - "ARN: {{ secret_foo_arn.stdout }}"
+
+    # =========================================================================
     # Summary
     # =========================================================================
-    - name: Display DNS setup summary
+    - name: Display RHDP environment setup summary
       ansible.builtin.debug:
         msg:
           - "=============================================="
-          - "DNS Setup Complete for Example Power"
+          - "RHDP Environment Setup Complete"
           - "=============================================="
           - "Sandbox ID: {{ sandbox_id }}"
           - "Sandbox Base Domain: {{ sandbox_base_domain }}"
@@ -85,4 +129,8 @@
           - ""
           - "Name Servers:"
           - "  {{ route53_name_servers | join('\n  ') }}"
+          - ""
+          - "AWS Secrets Manager:"
+          - "  Secret: foo"
+          - "  ARN: {{ secret_foo_arn.stdout }}"
           - "=============================================="

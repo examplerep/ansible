@@ -23,3 +23,6 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# OpenShift clusters (contains sensitive data)
+.clusters/

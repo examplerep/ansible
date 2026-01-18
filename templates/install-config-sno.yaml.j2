@@ -1,0 +1,33 @@
+apiVersion: v1
+baseDomain: {{ cluster_base_domain }}
+metadata:
+  name: {{ cluster_name }}
+networking:
+  networkType: OVNKubernetes
+  clusterNetwork:
+    - cidr: 10.128.0.0/14
+      hostPrefix: 23
+  machineNetwork:
+    - cidr: 10.0.0.0/16
+  serviceNetwork:
+    - 172.30.0.0/16
+compute:
+  - architecture: amd64
+    hyperthreading: Enabled
+    name: worker
+    platform: {}
+    replicas: 0
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  platform:
+    aws:
+      type: {{ instance_type }}
+  replicas: 1
+platform:
+  aws:
+    region: {{ aws_region }}
+publish: External
+pullSecret: '{{ pull_secret | to_json }}'
+sshKey: '{{ ssh_key }}'

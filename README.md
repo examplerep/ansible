@@ -13,7 +13,7 @@ Ansible playbooks for managing Example Power infrastructure.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-ansible-galaxy collection install -r collections/requirements.yml
+ansible-galaxy collection install -r collections.yml
 ```
 
 ## Configuration
@@ -55,6 +55,15 @@ echo "your-github-pat" > ~/.github_pat
 chmod 600 ~/.github_pat
 ```
 
+### OpenShift Pull Secret
+
+Download your pull secret from [Red Hat Console](https://console.redhat.com/openshift/install/pull-secret) and store it:
+
+```shell
+# Save pull secret to ~/.pull-secret
+chmod 600 ~/.pull-secret
+```
+
 ### Environment Variables
 
 The following environment variables must be set before running playbooks:
@@ -69,36 +78,65 @@ export SANDBOX_ID="1234"
 
 ## Playbooks
 
-### DNS Setup
+### Setup RHDP Environment
 
-Creates a Route53 hosted zone for `ocp.examplerep.com` and configures Cloudflare NS delegation.
+Sets up the RHDP (Red Hat Demo Platform) environment including DNS and AWS Secrets Manager.
 
 ```shell
 source .venv/bin/activate
-ansible-playbook playbooks/setup-dns.yml
+ansible-playbook playbooks/setup-rhdp-environment.yml
 ```
 
 **What it does:**
 
 1. Creates Route53 hosted zone for `ocp.examplerep.com`
 2. Creates NS records in Cloudflare pointing `ocp.examplerep.com` to Route53 name servers
+3. Creates AWS Secrets Manager secrets for cluster use
+
+### Create Hub Cluster
+
+Creates a Single Node OpenShift (SNO) cluster for the hub at `hub.ocp.examplerep.com`.
+
+```shell
+source .venv/bin/activate
+ansible-playbook playbooks/create-hub-cluster.yml
+```
+
+**What it does:**
+
+1. Generates install-config.yaml for SNO
+2. Runs openshift-install to create the cluster
+3. Outputs cluster access credentials
+
+**Cluster Details:**
+
+| Property      | Value                       |
+| ------------- | --------------------------- |
+| Cluster Name  | hub                         |
+| Domain        | hub.ocp.examplerep.com      |
+| Type          | Single Node OpenShift (SNO) |
+| Architecture  | amd64                       |
+| Instance Type | m6i.4xlarge                 |
 
 ## Directory Structure
 
 ```text
-.venv/                       # Python virtual environment
-.gitignore                   # Git ignore file
-ansible.cfg                  # Ansible configuration
-collections/
-└── requirements.yml         # Required Ansible collections
+.clusters/                      # Cluster installation files (gitignored)
+.gitignore                      # Git ignore file
+.venv/                          # Python virtual environment
+ansible.cfg                     # Ansible configuration
+collections.yml                 # Required Ansible collections
 inventory/
 ├── group_vars/
-│   └── all.yml              # Global variables
-└── hosts.yml                # Inventory configuration
+│   └── all.yml                 # Global variables
+└── hosts.yml                   # Inventory configuration
 playbooks/
-└── setup-dns.yml            # DNS setup playbook
-requirements.txt             # Python dependencies
-README.md                    # This file
+├── create-hub-cluster.yml      # Hub cluster creation playbook
+└── setup-rhdp-environment.yml  # RHDP environment setup (DNS, Secrets Manager)
+README.md                       # This file
+requirements.txt                # Python dependencies
+templates/
+└── install-config-sno.yaml.j2  # SNO install config template
 ```
 
 ## Domain Architecture
