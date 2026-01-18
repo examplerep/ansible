@@ -47,6 +47,53 @@
     # =========================================================================
     # Cloudflare - Create NS Records
     # =========================================================================
+    - name: Get Cloudflare zone ID
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones?name={{ base_domain }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+        return_content: true
+      register: cloudflare_zone_result
+
+    - name: Set Cloudflare zone ID fact
+      ansible.builtin.set_fact:
+        cloudflare_zone_id: "{{ cloudflare_zone_result.json.result[0].id }}"
+
+    - name: Get existing NS records from Cloudflare
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=NS&name={{ ocp_subdomain }}.{{ base_domain }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+        return_content: true
+      register: existing_ns_records
+
+    - name: Set existing NS records fact
+      ansible.builtin.set_fact:
+        existing_ns_values: "{{ existing_ns_records.json.result | map(attribute='content') | list }}"
+        existing_ns_record_ids: "{{ existing_ns_records.json.result | map(attribute='id') | list }}"
+
+    - name: Check if NS records need updating
+      ansible.builtin.set_fact:
+        ns_records_match: "{{ (existing_ns_values | sort) == (route53_name_servers | sort) }}"
+
+    - name: Display existing NS records status
+      ansible.builtin.debug:
+        msg: "Existing NS records match Route53 name servers, skipping update"
+      when: ns_records_match
+
+    - name: Delete existing NS records from Cloudflare
+      community.general.cloudflare_dns:
+        zone: "{{ base_domain }}"
+        api_token: "{{ cloudflare_api_token }}"
+        state: absent
+        type: NS
+        record: "{{ ocp_subdomain }}"
+        value: "{{ item }}"
+      loop: "{{ existing_ns_values }}"
+      when: not ns_records_match and existing_ns_values | length > 0
+
     - name: Create NS records in Cloudflare pointing to Route53
       community.general.cloudflare_dns:
         zone: "{{ base_domain }}"
@@ -57,12 +104,13 @@
         value: "{{ item }}"
       loop: "{{ route53_name_servers }}"
       register: cloudflare_ns_records
+      when: not ns_records_match
 
     - name: Display Cloudflare NS records created
       ansible.builtin.debug:
         msg: "Created NS record: {{ ocp_subdomain }}.{{ base_domain }} -> {{ item.item }}"
       loop: "{{ cloudflare_ns_records.results }}"
-      when: item.changed
+      when: not ns_records_match and item.changed
 
     # =========================================================================
     # AWS Secrets Manager - Create Secrets
