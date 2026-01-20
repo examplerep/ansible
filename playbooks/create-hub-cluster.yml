@@ -18,7 +18,7 @@
         fail_msg: |
           Missing required configuration:
             - ~/.pull-secret
-            - ~/.ssh/ocp_ed25519.pub
+            - ~/.ssh/lab_ed25519.pub
             - ~/.aws/credentials
         success_msg: "All required configuration is present"
 
