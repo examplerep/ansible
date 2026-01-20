@@ -115,7 +115,7 @@
           - "Kubeconfig: {{ cluster_dir }}/auth/kubeconfig"
           - ""
           - "To access the cluster:"
-          - "  export KUBECONFIG={{ cluster_dir }}/auth/kubeconfig"
+          - "  oc login https://api.{{ cluster_name }}.{{ cluster_base_domain }}:6443 -u kubeadmin -p {{ kubeadmin_password.content | b64decode }} --insecure-skip-tls-verify=true"
           - "  oc whoami"
           - ""
           - "=============================================="
