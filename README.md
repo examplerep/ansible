@@ -22,7 +22,7 @@ AWS credentials are read automatically from `~/.aws/credentials`. Configure usin
 aws configure
 ```
 
-You will be prompted for:
+You will be prompted for:  
 
 ```text
 AWS Access Key ID [None]: your-access-key
