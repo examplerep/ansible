@@ -77,7 +77,6 @@
           - "Instance Type: {{ instance_type }}"
           - "AWS Region: {{ aws_region }}"
           - "Cluster Type: Single Node OpenShift (SNO)"
-          - "Architecture: arm64"
           - "=============================================="
           - ""
           - "This will take approximately 30-45 minutes..."

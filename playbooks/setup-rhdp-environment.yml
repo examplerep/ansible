@@ -157,6 +157,36 @@
           - "ARN: {{ secret_foo_arn.stdout }}"
 
     # =========================================================================
+    # DNS Propagation Check
+    # =========================================================================
+    - name: Set expected name servers (normalized without trailing dots)
+      ansible.builtin.set_fact:
+        expected_ns_normalized: "{{ route53_name_servers | map('regex_replace', '\\.$', '') | list | sort }}"
+
+    - name: Wait for Cloudflare DNS propagation
+      ansible.builtin.shell: |
+        dig +short NS {{ ocp_subdomain }}.{{ base_domain }} @1.1.1.1 | sed 's/\.$//' | sort
+      register: dns_check
+      until: (dns_check.stdout_lines | sort) == expected_ns_normalized
+      retries: 30
+      delay: 10
+      changed_when: false
+      when: not ns_records_match
+
+    - name: Display DNS propagation status
+      ansible.builtin.debug:
+        msg:
+          - "DNS propagation complete!"
+          - "NS records for {{ ocp_subdomain }}.{{ base_domain }} are now resolving via Cloudflare DNS (1.1.1.1)"
+          - "Resolved name servers: {{ dns_check.stdout_lines | default([]) }}"
+      when: not ns_records_match
+
+    - name: Skip DNS check message
+      ansible.builtin.debug:
+        msg: "NS records already matched, skipping DNS propagation check"
+      when: ns_records_match
+
+    # =========================================================================
     # Summary
     # =========================================================================
     - name: Display RHDP environment setup summary

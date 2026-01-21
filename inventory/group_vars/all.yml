@@ -31,7 +31,7 @@ openshift_install_dir: "{{ playbook_dir }}/../.clusters"
 # Hub Cluster Configuration
 hub_cluster_name: hub
 hub_cluster_domain: "{{ hub_cluster_name }}.{{ ocp_domain }}"
-hub_instance_type: m7a.8xlarge
+hub_instance_type: m6i.4xlarge
 
 # Spoke Cluster Configuration (dev, test, prod)
 spoke_instance_type: m6i.4xlarge

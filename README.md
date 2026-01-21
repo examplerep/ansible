@@ -95,6 +95,7 @@ Creates a Single Node OpenShift (SNO) cluster for the hub at `hub.ocp.examplerep
 
 ```shell
 source .venv/bin/activate
+rm -rf .clusters/hub
 ansible-playbook playbooks/create-hub-cluster.yml
 ```
 
